@@ -67,7 +67,7 @@ export async function createQuestion(
   return question
 }
 
-export async function getRecentQuestions(excludeUserId?: string): Promise<Question[]> {
+export async function getRecentQuestions(): Promise<Question[]> {
   const redis = await getRedisClient()
   
   if (!redis || isLocalDev) {
@@ -75,7 +75,7 @@ export async function getRecentQuestions(excludeUserId?: string): Promise<Questi
     const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000)
     const recentQuestions: Question[] = []
     
-    for (const [id, question] of localQuestions) {
+    for (const [, question] of localQuestions) {
       if (question.createdAt > oneDayAgo) {
         recentQuestions.push(question)
       }
