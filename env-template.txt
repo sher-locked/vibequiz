@@ -1,15 +1,18 @@
-# Environment Variables Template
-# Copy this content to .env.local for local development
+# Environment Variables for VibeQuiz
+# Copy this file to .env.local and fill in your values
 
-# AUTH.JS CONFIGURATION
-AUTH_SECRET=your_auth_secret_here_minimum_32_characters
-AUTH_URL=https://your-app-name.vercel.app
+# Auth.js Configuration
+AUTH_SECRET=your-random-secret-key-here
+AUTH_URL=http://localhost:3000
 
-# GOOGLE OAUTH
-GOOGLE_CLIENT_ID=your_google_client_id_here  
-GOOGLE_CLIENT_SECRET=your_google_client_secret_here
+# Google OAuth (get from Google Cloud Console)
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
 
-# VERCEL KV (Production only - leave empty for local dev)
-KV_REST_API_URL=
-KV_REST_API_TOKEN=
-KV_REST_API_READ_ONLY_TOKEN=
+# Redis Database (for production)
+REDIS_URL=redis://username:password@host:port
+
+# Development Notes:
+# - If REDIS_URL is not set, app will use local in-memory storage
+# - This is perfect for development - no database setup needed!
+# - In production, set REDIS_URL to your Redis Cloud connection string

@@ -1,6 +1,7 @@
-// Local development fallback for Vercel KV
+// Database layer supporting both Redis Cloud and local development fallback
 import { nanoid } from 'nanoid'
 import type { Question, UserAnswer, QuestionStats, AnswerChoice } from './types'
+import { getRedisClient } from './redis'
 
 // In-memory storage for local development
 const localQuestions: Map<string, Question> = new Map()
@@ -9,10 +10,8 @@ const localUserAnswered: Set<string> = new Set()
 const questionsByUser: Map<string, Set<string>> = new Map()
 const answersByQuestion: Map<string, Set<string>> = new Map()
 
-// Check if we're in development and KV is not available
-const isLocalDev = process.env.NODE_ENV === 'development' && !process.env.KV_REST_API_URL
-
-console.log(`🔧 Database Mode: ${isLocalDev ? 'LOCAL FALLBACK' : 'VERCEL KV'}`)
+// Check if we're in development and Redis is not available
+const isLocalDev = process.env.NODE_ENV === 'development' && !process.env.REDIS_URL
 
 // =============================================================================
 // QUESTION OPERATIONS
@@ -43,7 +42,9 @@ export async function createQuestion(
     correctAnswers: 0
   }
 
-  if (isLocalDev) {
+  const redis = await getRedisClient()
+  
+  if (!redis || isLocalDev) {
     // Local storage
     localQuestions.set(questionId, question)
     
@@ -54,20 +55,23 @@ export async function createQuestion(
     
     console.log(`📝 Created question locally: ${questionId}`)
   } else {
-    // Use actual Vercel KV
-    const { kv } = await import('@vercel/kv')
-    await kv.set(`question:${questionId}`, question)
-    await kv.sadd('questions:recent', questionId)
-    await kv.expire('questions:recent', 24 * 60 * 60)
-    await kv.sadd(`questions:by-user:${createdBy}`, questionId)
+    // Use Redis
+    await redis.setEx(`question:${questionId}`, 86400, JSON.stringify(question)) // 24 hour TTL
+    await redis.sAdd('questions:recent', questionId)
+    await redis.expire('questions:recent', 86400) // 24 hours
+    await redis.sAdd(`questions:by-user:${createdBy}`, questionId)
+    
+    console.log(`📝 Created question in Redis: ${questionId}`)
   }
   
   return question
 }
 
 export async function getRecentQuestions(excludeUserId?: string): Promise<Question[]> {
-  if (isLocalDev) {
-    // Get all questions from last 24 hours
+  const redis = await getRedisClient()
+  
+  if (!redis || isLocalDev) {
+    // Get all questions from last 24 hours (local)
     const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000)
     const recentQuestions: Question[] = []
     
@@ -83,23 +87,22 @@ export async function getRecentQuestions(excludeUserId?: string): Promise<Questi
     
     return recentQuestions.sort((a, b) => b.createdAt - a.createdAt)
   } else {
-    // Use actual Vercel KV
-    const { kv } = await import('@vercel/kv')
-    const questionIds = await kv.smembers('questions:recent') as string[]
+    // Use Redis
+    const questionIds = await redis.sMembers('questions:recent')
     
     if (questionIds.length === 0) return []
     
-    const pipeline = kv.pipeline()
-    questionIds.forEach(id => pipeline.get(`question:${id}`))
-    const results = await pipeline.exec() as Question[]
-    
     const questions: Question[] = []
-    for (let i = 0; i < results.length; i++) {
-      const question = results[i]
-      if (!question) continue
+    
+    for (const questionId of questionIds) {
+      const questionData = await redis.get(`question:${questionId}`)
+      if (!questionData) continue
       
+      const question: Question = JSON.parse(questionData)
+      
+      // Check if user already answered
       if (excludeUserId) {
-        const hasAnswered = await kv.exists(`user-answered:${excludeUserId}:${question.id}`)
+        const hasAnswered = await redis.exists(`user-answered:${excludeUserId}:${questionId}`)
         if (hasAnswered) continue
       }
       
@@ -111,11 +114,13 @@ export async function getRecentQuestions(excludeUserId?: string): Promise<Questi
 }
 
 export async function getQuestion(questionId: string): Promise<Question | null> {
-  if (isLocalDev) {
+  const redis = await getRedisClient()
+  
+  if (!redis || isLocalDev) {
     return localQuestions.get(questionId) || null
   } else {
-    const { kv } = await import('@vercel/kv')
-    return await kv.get(`question:${questionId}`)
+    const questionData = await redis.get(`question:${questionId}`)
+    return questionData ? JSON.parse(questionData) : null
   }
 }
 
@@ -130,9 +135,10 @@ export async function submitAnswer(
   selectedAnswer: AnswerChoice
 ): Promise<{ success: boolean; isCorrect: boolean; message: string; stats?: QuestionStats | null }> {
   const userAnswerKey = `${userId}:${questionId}`
+  const redis = await getRedisClient()
   
-  if (isLocalDev) {
-    // Check if user already answered
+  if (!redis || isLocalDev) {
+    // Local implementation
     if (localUserAnswered.has(userAnswerKey)) {
       return {
         success: false,
@@ -141,7 +147,6 @@ export async function submitAnswer(
       }
     }
     
-    // Get the question
     const question = localQuestions.get(questionId)
     if (!question) {
       return {
@@ -189,10 +194,8 @@ export async function submitAnswer(
       stats
     }
   } else {
-    // Use actual Vercel KV implementation
-    const { kv } = await import('@vercel/kv')
-    
-    const hasAnswered = await kv.exists(`user-answered:${userId}:${questionId}`)
+    // Redis implementation
+    const hasAnswered = await redis.exists(`user-answered:${userId}:${questionId}`)
     if (hasAnswered) {
       return {
         success: false,
@@ -224,17 +227,18 @@ export async function submitAnswer(
       userName
     }
     
-    await Promise.all([
-      kv.set(`answer:${answerId}`, userAnswer),
-      kv.sadd(`answers:by-question:${questionId}`, answerId),
-      kv.sadd(`answers:by-user:${userId}`, answerId),
-      kv.set(`user-answered:${userId}:${questionId}`, true)
-    ])
+    // Store in Redis with TTL
+    await redis.setEx(`answer:${answerId}`, 86400, JSON.stringify(userAnswer))
+    await redis.sAdd(`answers:by-question:${questionId}`, answerId)
+    await redis.sAdd(`answers:by-user:${userId}`, answerId)
+    await redis.setEx(`user-answered:${userId}:${questionId}`, 86400, 'true')
     
-    await kv.hincrby(`question:${questionId}`, 'totalAnswers', 1)
+    // Update question counters
+    question.totalAnswers++
     if (isCorrect) {
-      await kv.hincrby(`question:${questionId}`, 'correctAnswers', 1)
+      question.correctAnswers++
     }
+    await redis.setEx(`question:${questionId}`, 86400, JSON.stringify(question))
     
     const stats = await getQuestionStats(questionId)
     
@@ -248,11 +252,12 @@ export async function submitAnswer(
 }
 
 export async function hasUserAnswered(userId: string, questionId: string): Promise<boolean> {
-  if (isLocalDev) {
+  const redis = await getRedisClient()
+  
+  if (!redis || isLocalDev) {
     return localUserAnswered.has(`${userId}:${questionId}`)
   } else {
-    const { kv } = await import('@vercel/kv')
-    return Boolean(await kv.exists(`user-answered:${userId}:${questionId}`))
+    return Boolean(await redis.exists(`user-answered:${userId}:${questionId}`))
   }
 }
 
@@ -264,7 +269,10 @@ export async function getQuestionStats(questionId: string): Promise<QuestionStat
   const question = await getQuestion(questionId)
   if (!question) return null
   
-  if (isLocalDev) {
+  const redis = await getRedisClient()
+  
+  if (!redis || isLocalDev) {
+    // Local implementation
     const answerIds = answersByQuestion.get(questionId) || new Set()
     
     if (answerIds.size === 0) {
@@ -302,9 +310,8 @@ export async function getQuestionStats(questionId: string): Promise<QuestionStat
       recentAnswerers
     }
   } else {
-    // Use actual Vercel KV
-    const { kv } = await import('@vercel/kv')
-    const answerIds = await kv.smembers(`answers:by-question:${questionId}`) as string[]
+    // Redis implementation
+    const answerIds = await redis.sMembers(`answers:by-question:${questionId}`)
     
     if (answerIds.length === 0) {
       return {
@@ -316,17 +323,20 @@ export async function getQuestionStats(questionId: string): Promise<QuestionStat
       }
     }
     
-    const pipeline = kv.pipeline()
-    answerIds.forEach(id => pipeline.get(`answer:${id}`))
+    const answers: UserAnswer[] = []
     
-    const answers = (await pipeline.exec()) as UserAnswer[]
-    const validAnswers = answers.filter(Boolean)
+    for (const answerId of answerIds) {
+      const answerData = await redis.get(`answer:${answerId}`)
+      if (answerData) {
+        answers.push(JSON.parse(answerData))
+      }
+    }
     
-    const totalAnswers = validAnswers.length
-    const correctAnswers = validAnswers.filter(a => a.isCorrect).length
+    const totalAnswers = answers.length
+    const correctAnswers = answers.filter(a => a.isCorrect).length
     const correctPercentage = totalAnswers > 0 ? Math.round((correctAnswers / totalAnswers) * 100) : 0
     
-    const recentAnswerers = validAnswers
+    const recentAnswerers = answers
       .sort((a, b) => b.answeredAt - a.answeredAt)
       .slice(0, 10)
       .map(answer => ({

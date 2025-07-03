@@ -1,210 +1,128 @@
 # 🚀 VibeQuiz Deployment Guide
 
-This guide will help you deploy VibeQuiz to Vercel with all necessary configurations.
+## Overview
+VibeQuiz is a Next.js quiz application that uses Redis Cloud for data storage in production and falls back to local in-memory storage for development.
 
-## 📋 Pre-Deployment Checklist
+## Prerequisites
+- GitHub account
+- Vercel account
+- Redis Cloud account
+- Google Cloud Console account (for OAuth)
 
-- [ ] GitHub repository ready
-- [ ] Google OAuth credentials configured
-- [ ] Vercel account created
-- [ ] Environment variables prepared
+## Step 1: Database Setup (Redis Cloud)
 
----
+### 1.1 Create Redis Cloud Account
+1. Go to [Redis Cloud](https://redis.com/cloud/)
+2. Sign up for a free account
+3. Create a new database
 
-## 🔧 Step 1: Google OAuth Setup
+### 1.2 Get Redis Connection String
+1. In your Redis Cloud dashboard, go to your database
+2. Click "Connect"
+3. Copy the Redis URL (format: `redis://username:password@host:port`)
 
-### 1.1 Create Google OAuth Credentials
+## Step 2: Google OAuth Setup
 
-1. Visit [Google Cloud Console](https://console.cloud.google.com/)
+### 2.1 Create Google Cloud Project
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
 2. Create a new project or select existing one
-3. Navigate to **APIs & Services** > **Credentials**
-4. Click **+ CREATE CREDENTIALS** > **OAuth client ID**
-5. Choose **Web application**
-6. Set **Authorized redirect URIs** to:
-   ```
-   http://localhost:3000/api/auth/callback/google
-   https://your-app-name.vercel.app/api/auth/callback/google
-   ```
-7. Save **Client ID** and **Client Secret**
+3. Enable Google+ API
 
-### 1.2 Generate AUTH_SECRET
+### 2.2 Create OAuth Credentials
+1. Go to "Credentials" → "Create Credentials" → "OAuth 2.0 Client ID"
+2. Application type: Web application
+3. Authorized redirect URIs:
+   - `http://localhost:3000/api/auth/callback/google` (for local development)
+   - `https://your-app-name.vercel.app/api/auth/callback/google` (for production)
 
-Run this command to generate a secure auth secret:
-```bash
-npx auth secret
+### 2.3 Get OAuth Credentials
+1. Copy the Client ID and Client Secret
+2. Keep these secure - you'll need them for environment variables
+
+## Step 3: Vercel Deployment
+
+### 3.1 Connect GitHub Repository
+1. Push your code to GitHub
+2. Go to [Vercel](https://vercel.com/)
+3. Click "New Project"
+4. Import your GitHub repository
+
+### 3.2 Configure Environment Variables
+In your Vercel project settings, add these environment variables:
+
+```
+AUTH_SECRET=your-random-secret-key-here
+AUTH_URL=https://your-app-name.vercel.app
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+REDIS_URL=redis://username:password@host:port
 ```
 
-Or visit: https://generate-secret.vercel.app/32
+### 3.3 Deploy
+1. Click "Deploy"
+2. Wait for deployment to complete
+3. Test your application
 
----
+## Step 4: Update OAuth Settings
 
-## 🌐 Step 2: Vercel Deployment
+### 4.1 Update Google OAuth Redirect URI
+1. Go back to Google Cloud Console
+2. Edit your OAuth 2.0 Client ID
+3. Add your production URL: `https://your-app-name.vercel.app/api/auth/callback/google`
 
-### 2.1 Deploy to Vercel
+## Step 5: Test Production App
 
-1. **Connect Repository**
-   ```bash
-   # Install Vercel CLI (optional)
-   npm i -g vercel
-   
-   # Or deploy via GitHub integration
-   ```
+### 5.1 Test Authentication
+1. Visit your deployed app
+2. Try logging in with Google
+3. Verify user data appears correctly
 
-2. **GitHub Integration (Recommended)**
-   - Go to [Vercel Dashboard](https://vercel.com/dashboard)
-   - Click **New Project**
-   - Import your GitHub repository
-   - Configure project settings
+### 5.2 Test Quiz Features
+1. Create a new question
+2. Answer questions
+3. Check that stats update correctly
 
-### 2.2 Environment Variables
+## Development vs Production
 
-In Vercel Dashboard, go to **Settings** > **Environment Variables** and add:
+### Local Development
+- **Database**: In-memory storage (no setup required)
+- **Authentication**: Works with localhost URLs
+- **Environment**: Uses `.env.local` file
 
-| Variable | Value | Environment |
-|----------|-------|-------------|
-| `AUTH_SECRET` | Your generated secret | Production |
-| `AUTH_URL` | `https://your-app.vercel.app` | Production |
-| `GOOGLE_CLIENT_ID` | Your Google Client ID | Production |
-| `GOOGLE_CLIENT_SECRET` | Your Google Client Secret | Production |
+### Production
+- **Database**: Redis Cloud
+- **Authentication**: Works with production URLs
+- **Environment**: Uses Vercel environment variables
 
-**Note:** KV variables will be added automatically in Step 3.
-
----
-
-## 💾 Step 3: Add Vercel KV Database
-
-### 3.1 Create KV Database
-
-1. In Vercel Dashboard, go to **Storage** tab
-2. Click **Create Database**
-3. Select **KV**
-4. Choose your preferred region
-5. Click **Create**
-
-### 3.2 Connect to Project
-
-1. Click on your new KV database
-2. Go to **Settings** tab
-3. Click **Connect Project**
-4. Select your VibeQuiz project
-5. Choose **Production** environment
-
-This automatically adds these environment variables:
-- `KV_REST_API_URL`
-- `KV_REST_API_TOKEN`
-- `KV_REST_API_READ_ONLY_TOKEN`
-
----
-
-## 🔄 Step 4: Update OAuth Redirect URI
-
-After deployment, update your Google OAuth settings:
-
-1. Go back to [Google Cloud Console](https://console.cloud.google.com/)
-2. Navigate to **APIs & Services** > **Credentials**
-3. Edit your OAuth client
-4. Update **Authorized redirect URIs** with your actual Vercel URL:
-   ```
-   https://your-actual-app-name.vercel.app/api/auth/callback/google
-   ```
-
----
-
-## ✅ Step 5: Verify Deployment
-
-### 5.1 Test Core Features
-
-Visit your deployed app and verify:
-
-- [ ] Homepage loads correctly
-- [ ] Google OAuth login works
-- [ ] Questions feed displays (empty initially)
-- [ ] Question creation modal opens
-- [ ] Can create new questions
-- [ ] Can answer questions
-- [ ] Stats update correctly
-
-### 5.2 Check Logs
-
-Monitor deployment in Vercel Dashboard:
-1. Go to **Functions** tab
-2. Check real-time logs
-3. Verify no errors in API endpoints
-
----
-
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
-**1. OAuth Redirect Mismatch**
-```
-Error: redirect_uri_mismatch
-```
-**Solution:** Ensure redirect URI in Google Console matches your Vercel domain exactly.
+1. **Authentication fails**: Check OAuth redirect URIs match exactly
+2. **Database connection fails**: Verify Redis URL is correct and accessible
+3. **Environment variables not working**: Ensure they're set in Vercel dashboard
 
-**2. AUTH_SECRET Missing**
-```
-Error: AUTH_SECRET environment variable is not set
-```
-**Solution:** Add AUTH_SECRET environment variable in Vercel settings.
+### Environment Variable Reference
 
-**3. KV Connection Issues**
-```
-Error: KV_REST_API_URL is not defined
-```
-**Solution:** Ensure KV database is connected to your project.
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `AUTH_SECRET` | Random secret for Auth.js | `your-random-secret-key-here` |
+| `AUTH_URL` | Full URL of your app | `https://your-app.vercel.app` |
+| `GOOGLE_CLIENT_ID` | Google OAuth Client ID | `123456789-abc.apps.googleusercontent.com` |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth Client Secret | `GOCSPX-abcdef123456` |
+| `REDIS_URL` | Redis connection string | `redis://default:password@host:port` |
 
-### Debug Mode
+## Security Notes
 
-Enable debug logging by adding to environment variables:
-```
-AUTH_DEBUG=true
-```
+- Never commit real credentials to git
+- Use environment variables for all sensitive data
+- Rotate AUTH_SECRET periodically
+- Use HTTPS in production (automatic with Vercel)
 
----
+## Support
 
-## 📦 Local Development Setup
-
-For local development with production data:
-
-1. Copy `.env.example` to `.env.local`
-2. Add your environment variables
-3. Run: `pnpm dev`
-
-**Note:** Local development uses in-memory storage by default. To use production KV locally, add KV environment variables to `.env.local`.
-
----
-
-## 🔄 Continuous Deployment
-
-The app is configured for automatic deployment:
-- **Push to `main`** → Deploys to production
-- **Push to other branches** → Creates preview deployments
-
-### Manual Deployment
-
-```bash
-# Using Vercel CLI
-vercel --prod
-
-# Or trigger from GitHub
-git push origin main
-```
-
----
-
-## 📊 Production Monitoring
-
-Monitor your app performance:
-1. Vercel **Analytics** (built-in)
-2. **Functions** logs for API monitoring
-3. **Speed Insights** for performance
-
----
-
-## 🎉 Success!
-
-Your VibeQuiz app should now be live at: `https://your-app-name.vercel.app`
-
-Share the URL with your workshop participants and start creating engaging quizzes! 🚀 
+If you encounter issues:
+1. Check Vercel deployment logs
+2. Verify all environment variables are set
+3. Test locally first with `.env.local`
+4. Check Redis Cloud connectivity 
