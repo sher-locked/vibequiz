@@ -16,6 +16,18 @@ export interface Question {
   correctAnswers: number  // Counter for correct responses
 }
 
+export interface QuestionWithAnswerStatus extends Omit<Question, 'correctAnswer'> {
+  isMyQuestion: boolean
+  isAnswered: boolean
+  userAnswer: {
+    selectedAnswer: 'a' | 'b' | 'c' | 'd'
+    isCorrect: boolean
+    answeredAt: number
+  } | null
+  correctAnswer?: 'a' | 'b' | 'c' | 'd'  // Only included if user has answered
+  stats: QuestionStats | null  // Only included if user has answered
+}
+
 export interface UserAnswer {
   id: string              // Unique answer ID
   questionId: string      // Reference to question

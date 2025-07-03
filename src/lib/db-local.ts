@@ -71,23 +71,19 @@ export async function getRecentQuestions(excludeUserId?: string): Promise<Questi
   const redis = await getRedisClient()
   
   if (!redis || isLocalDev) {
-    // Get all questions from last 24 hours (local)
+    // Get all questions from last 24 hours (local) - NO FILTERING BY ANSWERS
     const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000)
     const recentQuestions: Question[] = []
     
     for (const [id, question] of localQuestions) {
       if (question.createdAt > oneDayAgo) {
-        // Skip if user already answered
-        if (excludeUserId && localUserAnswered.has(`${excludeUserId}:${id}`)) {
-          continue
-        }
         recentQuestions.push(question)
       }
     }
     
     return recentQuestions.sort((a, b) => b.createdAt - a.createdAt)
   } else {
-    // Use Redis
+    // Use Redis - NO FILTERING BY ANSWERS
     const questionIds = await redis.sMembers('questions:recent')
     
     if (questionIds.length === 0) return []
@@ -99,13 +95,6 @@ export async function getRecentQuestions(excludeUserId?: string): Promise<Questi
       if (!questionData) continue
       
       const question: Question = JSON.parse(questionData)
-      
-      // Check if user already answered
-      if (excludeUserId) {
-        const hasAnswered = await redis.exists(`user-answered:${excludeUserId}:${questionId}`)
-        if (hasAnswered) continue
-      }
-      
       questions.push(question)
     }
     
@@ -127,6 +116,82 @@ export async function getQuestion(questionId: string): Promise<Question | null> 
 // =============================================================================
 // ANSWER OPERATIONS  
 // =============================================================================
+
+export async function getUserAnswerForQuestion(
+  userId: string,
+  questionId: string
+): Promise<UserAnswer | null> {
+  const redis = await getRedisClient()
+  
+  if (!redis || isLocalDev) {
+    // Local implementation
+    const userAnswerKey = `${userId}:${questionId}`
+    if (!localUserAnswered.has(userAnswerKey)) {
+      return null
+    }
+    
+    // Find the answer in local storage
+    for (const [, answer] of localAnswers) {
+      if (answer.userId === userId && answer.questionId === questionId) {
+        return answer
+      }
+    }
+    return null
+  } else {
+    // Redis implementation
+    const hasAnswered = await redis.exists(`user-answered:${userId}:${questionId}`)
+    if (!hasAnswered) {
+      return null
+    }
+    
+    // Get user's answers for this question
+    const userAnswerIds = await redis.sMembers(`answers:by-user:${userId}`)
+    
+    for (const answerId of userAnswerIds) {
+      const answerData = await redis.get(`answer:${answerId}`)
+      if (answerData) {
+        const answer: UserAnswer = JSON.parse(answerData)
+        if (answer.questionId === questionId) {
+          return answer
+        }
+      }
+    }
+    return null
+  }
+}
+
+export async function getUserAnswersForQuestions(
+  userId: string,
+  questionIds: string[]
+): Promise<Map<string, UserAnswer>> {
+  const redis = await getRedisClient()
+  const answers = new Map<string, UserAnswer>()
+  
+  if (!redis || isLocalDev) {
+    // Local implementation
+    for (const questionId of questionIds) {
+      const answer = await getUserAnswerForQuestion(userId, questionId)
+      if (answer) {
+        answers.set(questionId, answer)
+      }
+    }
+    return answers
+  } else {
+    // Redis implementation - more efficient batch operation
+    const userAnswerIds = await redis.sMembers(`answers:by-user:${userId}`)
+    
+    for (const answerId of userAnswerIds) {
+      const answerData = await redis.get(`answer:${answerId}`)
+      if (answerData) {
+        const answer: UserAnswer = JSON.parse(answerData)
+        if (questionIds.includes(answer.questionId)) {
+          answers.set(answer.questionId, answer)
+        }
+      }
+    }
+    return answers
+  }
+}
 
 export async function submitAnswer(
   questionId: string,

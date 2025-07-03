@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
-import { createQuestion, getRecentQuestions } from '@/lib/db'
+import { createQuestion, getRecentQuestions, getUserAnswersForQuestions, getQuestionStats } from '@/lib/db'
 import type { AnswerChoice } from '@/lib/types'
 
 // =============================================================================
@@ -126,21 +126,46 @@ export async function GET() {
 
     const userId = session.user.id
 
-    // Get recent questions (exclude ones user already answered)
-    const questions = await getRecentQuestions(userId)
+    // Get recent questions (now includes all questions, not filtered by answers)
+    const questions = await getRecentQuestions()
 
-    // Format questions for client (don't include correct answers)
-    const formattedQuestions = questions.map(question => ({
-      id: question.id,
-      questionText: question.questionText,
-      choices: question.choices,
-      createdAt: question.createdAt,
-      totalAnswers: question.totalAnswers,
-      correctAnswers: question.correctAnswers,
-      createdBy: question.createdBy,
-      // Determine if this user created the question
-      isMyQuestion: question.createdBy === userId
-    }))
+    // Get user's answers for all these questions efficiently
+    const questionIds = questions.map(q => q.id)
+    const userAnswers = await getUserAnswersForQuestions(userId, questionIds)
+
+    // Format questions for client with answer status
+    const formattedQuestions = await Promise.all(
+      questions.map(async question => {
+        const userAnswer = userAnswers.get(question.id)
+        const isAnswered = !!userAnswer
+        
+        // Get fresh stats for each question
+        const stats = await getQuestionStats(question.id)
+        
+        return {
+          id: question.id,
+          questionText: question.questionText,
+          choices: question.choices,
+          createdAt: question.createdAt,
+          totalAnswers: question.totalAnswers,
+          correctAnswers: question.correctAnswers,
+          createdBy: question.createdBy,
+          // Determine if this user created the question
+          isMyQuestion: question.createdBy === userId,
+          // Include answer status and data
+          isAnswered,
+          userAnswer: userAnswer ? {
+            selectedAnswer: userAnswer.selectedAnswer,
+            isCorrect: userAnswer.isCorrect,
+            answeredAt: userAnswer.answeredAt
+          } : null,
+          // Include correct answer only if user has answered
+          correctAnswer: isAnswered ? question.correctAnswer : undefined,
+          // Include stats for answered questions
+          stats: isAnswered ? stats : null
+        }
+      })
+    )
 
     return NextResponse.json({
       success: true,

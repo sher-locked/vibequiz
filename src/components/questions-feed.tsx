@@ -1,18 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import type { Question, QuestionStats } from '@/lib/types'
-
-interface QuestionWithMeta extends Omit<Question, 'correctAnswer'> {
-  isMyQuestion: boolean
-}
+import type { QuestionWithAnswerStatus, QuestionStats } from '@/lib/types'
 
 interface QuestionsFeedProps {
   refreshTrigger?: number
 }
 
 export default function QuestionsFeed({ refreshTrigger }: QuestionsFeedProps) {
-  const [questions, setQuestions] = useState<QuestionWithMeta[]>([])
+  const [questions, setQuestions] = useState<QuestionWithAnswerStatus[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -52,8 +48,13 @@ export default function QuestionsFeed({ refreshTrigger }: QuestionsFeedProps) {
     return <EmptyState />
   }
 
+  // Separate answered and unanswered questions
+  const unansweredQuestions = questions.filter(q => !q.isAnswered)
+  const answeredQuestions = questions.filter(q => q.isAnswered)
+
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-emerald-500/20 border border-emerald-500/30 rounded-lg flex items-center justify-center">
@@ -64,25 +65,53 @@ export default function QuestionsFeed({ refreshTrigger }: QuestionsFeedProps) {
           <h2 className="text-xl font-semibold text-slate-100">Recent Questions</h2>
         </div>
         <div className="text-sm text-slate-400">
-          {questions.length} question{questions.length !== 1 ? 's' : ''} in the last 24 hours
+          {questions.length} question{questions.length !== 1 ? 's' : ''} • {unansweredQuestions.length} to answer
         </div>
       </div>
 
-      <div className="grid gap-6">
-        {questions.map((question) => (
-          <QuestionCard 
-            key={question.id} 
-            question={question}
-            onAnswered={fetchQuestions}
-          />
-        ))}
-      </div>
+      {/* Unanswered Questions First */}
+      {unansweredQuestions.length > 0 && (
+        <div className="space-y-6">
+          {unansweredQuestions.map((question) => (
+            <QuestionCard 
+              key={question.id} 
+              question={question}
+              onAnswered={fetchQuestions}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Answered Questions Section */}
+      {answeredQuestions.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 pt-6">
+            <div className="w-6 h-6 bg-blue-500/20 border border-blue-500/30 rounded-lg flex items-center justify-center">
+              <svg className="w-3 h-3 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-medium text-slate-100">Your Answers</h3>
+            <div className="text-sm text-slate-400">
+              ({answeredQuestions.length} answered)
+            </div>
+          </div>
+          <div className="space-y-4">
+            {answeredQuestions.map((question) => (
+              <AnsweredQuestionCard 
+                key={question.id} 
+                question={question}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
 interface QuestionCardProps {
-  question: QuestionWithMeta
+  question: QuestionWithAnswerStatus
   onAnswered: () => void
 }
 
@@ -123,7 +152,7 @@ function QuestionCard({ question, onAnswered }: QuestionCardProps) {
         stats: data.stats
       })
 
-      // Refresh the feed to update stats
+      // Refresh the feed to update states
       onAnswered()
 
     } catch (err) {
@@ -199,8 +228,10 @@ function QuestionCard({ question, onAnswered }: QuestionCardProps) {
                   </svg>
                 )}
               </div>
-              <span className="font-medium mr-3">{choice.toUpperCase()}.</span>
-              <span className="flex-1">{question.choices[choice]}</span>
+              <span className="text-sm font-medium mr-3 text-slate-400">
+                {choice.toUpperCase()}.
+              </span>
+              <span>{question.choices[choice]}</span>
             </label>
           ))}
         </div>
@@ -236,40 +267,200 @@ function QuestionCard({ question, onAnswered }: QuestionCardProps) {
         </button>
       )}
 
-      {/* Answer Result */}
+      {/* Answer Result (for just-answered questions) */}
       {answered && result && (
-        <div className={`p-4 rounded-lg border ${
+        <div className={`border rounded-lg p-4 ${
           result.isCorrect 
-            ? 'bg-emerald-900/30 border-emerald-700/50' 
-            : 'bg-orange-900/30 border-orange-700/50'
+            ? 'bg-emerald-500/10 border-emerald-500/30' 
+            : 'bg-red-500/10 border-red-500/30'
         }`}>
           <div className="flex items-center gap-3 mb-3">
             <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-              result.isCorrect ? 'bg-emerald-500' : 'bg-orange-500'
+              result.isCorrect 
+                ? 'bg-emerald-500/20 text-emerald-400' 
+                : 'bg-red-500/20 text-red-400'
             }`}>
               {result.isCorrect ? (
-                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               ) : (
-                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               )}
             </div>
-            <p className={`font-medium ${
-              result.isCorrect ? 'text-emerald-300' : 'text-orange-300'
-            }`}>
-              {result.message}
-            </p>
+            <div>
+              <div className={`font-medium ${
+                result.isCorrect ? 'text-emerald-300' : 'text-red-300'
+              }`}>
+                {result.isCorrect ? 'Correct!' : 'Incorrect'}
+              </div>
+              <div className="text-sm text-slate-400">{result.message}</div>
+            </div>
           </div>
-
+          
+          {/* Show stats if available */}
           {result.stats && (
-            <div className="text-sm text-slate-300">
-              <p>
-                <span className="font-medium">{result.stats.correctPercentage}%</span> got this right 
-                ({result.stats.correctAnswers}/{result.stats.totalAnswers} people)
-              </p>
+            <div className="text-sm text-slate-400">
+              <div className="flex items-center gap-4">
+                <span>{result.stats.correctPercentage}% got this right</span>
+                <span>•</span>
+                <span>{result.stats.totalAnswers} total answers</span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// New component for answered questions
+interface AnsweredQuestionCardProps {
+  question: QuestionWithAnswerStatus
+}
+
+function AnsweredQuestionCard({ question }: AnsweredQuestionCardProps) {
+  const formatTimeAgo = (timestamp: number) => {
+    const now = Date.now()
+    const diffInSeconds = Math.floor((now - timestamp) / 1000)
+    
+    if (diffInSeconds < 60) return `${diffInSeconds}s ago`
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`
+    return `${Math.floor(diffInSeconds / 86400)}d ago`
+  }
+
+  const { userAnswer, correctAnswer, stats } = question
+
+  return (
+    <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-5">
+      {/* Question Header */}
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex-1">
+          <h3 className="text-base font-medium text-slate-200 mb-2">
+            {question.questionText}
+          </h3>
+          <div className="flex items-center gap-4 text-sm text-slate-400">
+            <span>Answered {userAnswer ? formatTimeAgo(userAnswer.answeredAt) : ''}</span>
+            {question.isMyQuestion && (
+              <span className="bg-blue-500/20 text-blue-300 px-2 py-1 rounded-full text-xs">
+                Your Question
+              </span>
+            )}
+          </div>
+        </div>
+        
+        {/* Result Badge */}
+        <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm ${
+          userAnswer?.isCorrect 
+            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' 
+            : 'bg-red-500/20 text-red-300 border border-red-500/30'
+        }`}>
+          {userAnswer?.isCorrect ? (
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          ) : (
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          )}
+          {userAnswer?.isCorrect ? 'Correct' : 'Incorrect'}
+        </div>
+      </div>
+
+      {/* Answer Choices with Results */}
+      <div className="space-y-2 mb-4">
+        {(['a', 'b', 'c', 'd'] as const).map((choice) => {
+          const isUserChoice = userAnswer?.selectedAnswer === choice
+          const isCorrectChoice = correctAnswer === choice
+          
+          let bgClass = 'bg-slate-900/50 border-slate-600/50'
+          let textClass = 'text-slate-400'
+          
+          if (isCorrectChoice) {
+            bgClass = 'bg-emerald-500/10 border-emerald-500/30'
+            textClass = 'text-emerald-300'
+          } else if (isUserChoice && !isCorrectChoice) {
+            bgClass = 'bg-red-500/10 border-red-500/30'
+            textClass = 'text-red-300'
+          }
+          
+          return (
+            <div
+              key={choice}
+              className={`flex items-center p-3 rounded-lg border ${bgClass}`}
+            >
+              <div className="flex items-center gap-2 mr-3">
+                <span className="text-xs font-medium text-slate-500">
+                  {choice.toUpperCase()}.
+                </span>
+                {isUserChoice && (
+                  <div className="w-4 h-4 rounded-full bg-blue-500/20 border border-blue-500/50 flex items-center justify-center">
+                    <div className="w-1.5 h-1.5 rounded-full bg-blue-400"></div>
+                  </div>
+                )}
+                {isCorrectChoice && (
+                  <svg className="w-3 h-3 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+              </div>
+              <span className={`text-sm ${textClass}`}>{question.choices[choice]}</span>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Social Stats */}
+      {stats && (
+        <div className="border-t border-slate-700/50 pt-4">
+          <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center gap-4 text-slate-400">
+              <span className="flex items-center gap-1">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                {stats.correctPercentage}% correct
+              </span>
+              <span>•</span>
+              <span>{stats.totalAnswers} total answers</span>
+            </div>
+            <div className={`text-xs px-2 py-1 rounded-full ${
+              stats.correctPercentage >= 80 
+                ? 'bg-red-500/20 text-red-300' 
+                : stats.correctPercentage >= 50 
+                ? 'bg-yellow-500/20 text-yellow-300' 
+                : 'bg-emerald-500/20 text-emerald-300'
+            }`}>
+              {stats.correctPercentage >= 80 ? 'Hard' : stats.correctPercentage >= 50 ? 'Medium' : 'Easy'}
+            </div>
+          </div>
+          
+          {/* Recent Answerers */}
+          {stats.recentAnswerers.length > 0 && (
+            <div className="mt-3">
+              <div className="text-xs text-slate-500 mb-2">Recent answers:</div>
+              <div className="flex items-center gap-2">
+                {stats.recentAnswerers.slice(0, 5).map((answerer, index) => (
+                  <div 
+                    key={index}
+                    className={`flex items-center gap-1 text-xs px-2 py-1 rounded-full ${
+                      answerer.isCorrect 
+                        ? 'bg-emerald-500/20 text-emerald-300' 
+                        : 'bg-red-500/20 text-red-300'
+                    }`}
+                  >
+                    <span>{answerer.userName.split(' ')[0]}</span>
+                    {answerer.isCorrect ? '✓' : '✗'}
+                  </div>
+                ))}
+                {stats.recentAnswerers.length > 5 && (
+                  <span className="text-xs text-slate-500">+{stats.recentAnswerers.length - 5} more</span>
+                )}
+              </div>
             </div>
           )}
         </div>
