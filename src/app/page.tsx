@@ -1,103 +1,169 @@
-import Image from "next/image";
+import { auth } from "@/lib/auth"
+import AuthButton from "@/components/auth-button"
 
-export default function Home() {
+export default async function Home() {
+  const session = await auth()
+  
+  // Console log for "aha moment" - students can see this in browser dev tools
+  if (session?.user) {
+    console.log("🎉 Authentication Success! User data:", {
+      name: session.user.name,
+      email: session.user.email,
+      image: session.user.image,
+      id: session.user.id
+    })
+  }
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className="min-h-screen bg-slate-900">
+      {/* Header with Auth */}
+      <header className="bg-slate-800 border-b border-slate-700">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-4">
+            <div className="flex items-center">
+              <h1 className="text-2xl font-bold text-slate-100 flex items-center gap-2">
+                <svg className="w-8 h-8 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                VibeQuiz
+              </h1>
+            </div>
+            <AuthButton />
+          </div>
         </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {session?.user ? (
+          <AuthenticatedView user={session.user} />
+        ) : (
+          <UnauthenticatedView />
+        )}
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
     </div>
-  );
+  )
+}
+
+function AuthenticatedView({ user }: { user: { name?: string | null; email?: string | null; id?: string } }) {
+  const firstName = user.name?.split(' ')[0] || 'there'
+  
+  return (
+    <div className="text-center space-y-8">
+      <div className="space-y-4">
+        <h2 className="text-4xl font-bold text-slate-100 flex items-center justify-center gap-3">
+          <svg className="w-10 h-10 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M12 5v.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Welcome back, {firstName}!
+        </h2>
+        <p className="text-xl text-slate-300 max-w-2xl mx-auto">
+          You&apos;re successfully connected to Google! Check your browser console (F12) to see the authentication data.
+        </p>
+      </div>
+      
+      {/* User Info Card */}
+      <div className="bg-slate-800 border border-slate-700 rounded-2xl p-8 max-w-md mx-auto">
+        <div className="flex items-center gap-3 mb-6">
+          <svg className="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+          </svg>
+          <h3 className="text-lg font-semibold text-slate-100">
+            Your Profile Info
+          </h3>
+        </div>
+        <div className="space-y-4 text-left">
+          <div className="flex justify-between items-center py-2 border-b border-slate-700">
+            <span className="font-medium text-slate-400">Name</span>
+            <span className="text-slate-200">{user.name || 'Not provided'}</span>
+          </div>
+          <div className="flex justify-between items-center py-2 border-b border-slate-700">
+            <span className="font-medium text-slate-400">Email</span>
+            <span className="text-slate-200">{user.email || 'Not provided'}</span>
+          </div>
+          <div className="flex justify-between items-center py-2">
+            <span className="font-medium text-slate-400">ID</span>
+            <span className="text-slate-200 font-mono text-sm">{user.id || 'Not provided'}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Next Steps */}
+      <div className="bg-emerald-900/30 border border-emerald-700/50 rounded-xl p-6">
+        <div className="flex items-center justify-center gap-2 mb-2">
+          <svg className="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <h3 className="text-lg font-semibold text-emerald-400">
+            Authentication Complete!
+          </h3>
+        </div>
+        <p className="text-emerald-300">
+          You&apos;ve successfully connected to Google&apos;s user database. Ready for Module 2: Game Mechanics & Storage!
+        </p>
+      </div>
+    </div>
+  )
+}
+
+function UnauthenticatedView() {
+  return (
+    <div className="text-center space-y-6">
+      <div className="text-center">
+        <p className="text-lg text-slate-300 max-w-2xl mx-auto">
+          Create engaging quizzes and share them with friends. Connect with Google to get started!
+        </p>
+      </div>
+      
+      {/* Features Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
+        <div className="bg-slate-800 border border-slate-700 rounded-lg p-4 hover:bg-slate-700/50 transition-colors">
+          <div className="w-10 h-10 bg-blue-500/20 border border-blue-500/30 rounded-lg flex items-center justify-center mx-auto mb-3">
+            <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+          </div>
+          <h3 className="font-semibold text-slate-100 mb-1">Create Quizzes</h3>
+          <p className="text-slate-400 text-sm">
+            Build engaging multiple-choice questions
+          </p>
+        </div>
+        
+        <div className="bg-slate-800 border border-slate-700 rounded-lg p-4 hover:bg-slate-700/50 transition-colors">
+          <div className="w-10 h-10 bg-emerald-500/20 border border-emerald-500/30 rounded-lg flex items-center justify-center mx-auto mb-3">
+            <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M12 5v.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h3 className="font-semibold text-slate-100 mb-1">Play & Share</h3>
+          <p className="text-slate-400 text-sm">
+            Answer questions and see instant results
+          </p>
+        </div>
+        
+        <div className="bg-slate-800 border border-slate-700 rounded-lg p-4 hover:bg-slate-700/50 transition-colors">
+          <div className="w-10 h-10 bg-purple-500/20 border border-purple-500/30 rounded-lg flex items-center justify-center mx-auto mb-3">
+            <svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+          </div>
+          <h3 className="font-semibold text-slate-100 mb-1">Track Results</h3>
+          <p className="text-slate-400 text-sm">
+            See who got questions right or wrong
+          </p>
+        </div>
+      </div>
+
+      {/* CTA */}
+      <div className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 border border-blue-500/30 rounded-xl p-6 max-w-md mx-auto">
+        <h3 className="text-lg font-semibold text-slate-100 mb-3">
+          Ready to start?
+        </h3>
+        <p className="text-slate-300 mb-4 text-sm">
+          Sign in with Google to begin creating and sharing quizzes
+        </p>
+        <AuthButton />
+      </div>
+    </div>
+  )
 }

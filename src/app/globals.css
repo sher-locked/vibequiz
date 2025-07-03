@@ -1,5 +1,19 @@
 @import "tailwindcss";
 
+/* Custom dark mode variables */
+:root {
+  --bg-primary: #0f172a;      /* slate-900 - main background */
+  --bg-secondary: #1e293b;    /* slate-800 - card backgrounds */
+  --bg-tertiary: #334155;     /* slate-700 - hover states */
+  --text-primary: #f1f5f9;    /* slate-100 - primary text */
+  --text-secondary: #cbd5e1;  /* slate-300 - secondary text */
+  --text-muted: #64748b;      /* slate-500 - muted text */
+  --accent-blue: #3b82f6;     /* blue-500 - primary accent */
+  --accent-green: #10b981;    /* emerald-500 - success */
+  --accent-red: #ef4444;      /* red-500 - error */
+  --border-color: #475569;    /* slate-600 - borders */
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
