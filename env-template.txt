@@ -1,0 +1,15 @@
+# Environment Variables Template
+# Copy this content to .env.local for local development
+
+# AUTH.JS CONFIGURATION
+AUTH_SECRET=your_auth_secret_here_minimum_32_characters
+AUTH_URL=https://your-app-name.vercel.app
+
+# GOOGLE OAUTH
+GOOGLE_CLIENT_ID=your_google_client_id_here  
+GOOGLE_CLIENT_SECRET=your_google_client_secret_here
+
+# VERCEL KV (Production only - leave empty for local dev)
+KV_REST_API_URL=
+KV_REST_API_TOKEN=
+KV_REST_API_READ_ONLY_TOKEN=

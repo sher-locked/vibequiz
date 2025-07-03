@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth"
 import AuthButton from "@/components/auth-button"
+import GameDashboard from "@/components/game-dashboard"
 
 export default async function Home() {
   const session = await auth()
@@ -49,62 +50,11 @@ function AuthenticatedView({ user }: { user: { name?: string | null; email?: str
   const firstName = user.name?.split(' ')[0] || 'there'
   
   return (
-    <div className="text-center space-y-8">
-      <div className="space-y-4">
-        <h2 className="text-4xl font-bold text-slate-100 flex items-center justify-center gap-3">
-          <svg className="w-10 h-10 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M12 5v.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          Welcome back, {firstName}!
-        </h2>
-        <p className="text-xl text-slate-300 max-w-2xl mx-auto">
-          You&apos;re successfully connected to Google! Check your browser console (F12) to see the authentication data.
-        </p>
-      </div>
-      
-      {/* User Info Card */}
-      <div className="bg-slate-800 border border-slate-700 rounded-2xl p-8 max-w-md mx-auto">
-        <div className="flex items-center gap-3 mb-6">
-          <svg className="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-          </svg>
-          <h3 className="text-lg font-semibold text-slate-100">
-            Your Profile Info
-          </h3>
-        </div>
-        <div className="space-y-4 text-left">
-          <div className="flex justify-between items-center py-2 border-b border-slate-700">
-            <span className="font-medium text-slate-400">Name</span>
-            <span className="text-slate-200">{user.name || 'Not provided'}</span>
-          </div>
-          <div className="flex justify-between items-center py-2 border-b border-slate-700">
-            <span className="font-medium text-slate-400">Email</span>
-            <span className="text-slate-200">{user.email || 'Not provided'}</span>
-          </div>
-          <div className="flex justify-between items-center py-2">
-            <span className="font-medium text-slate-400">ID</span>
-            <span className="text-slate-200 font-mono text-sm">{user.id || 'Not provided'}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Next Steps */}
-      <div className="bg-emerald-900/30 border border-emerald-700/50 rounded-xl p-6">
-        <div className="flex items-center justify-center gap-2 mb-2">
-          <svg className="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <h3 className="text-lg font-semibold text-emerald-400">
-            Authentication Complete!
-          </h3>
-        </div>
-        <p className="text-emerald-300">
-          You&apos;ve successfully connected to Google&apos;s user database. Ready for Module 2: Game Mechanics & Storage!
-        </p>
-      </div>
-    </div>
+    <GameDashboard firstName={firstName} />
   )
 }
+
+
 
 function UnauthenticatedView() {
   return (

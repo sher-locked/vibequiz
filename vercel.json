@@ -1,0 +1,18 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "pnpm build",
+  "installCommand": "pnpm install",
+  "devCommand": "pnpm dev",
+  "env": {
+    "NEXT_PUBLIC_DEPLOYMENT_URL": "https://vibe-quiz.vercel.app"
+  },
+  "functions": {
+    "app/api/**/*.ts": {
+      "maxDuration": 10
+    }
+  },
+  "regions": ["iad1"],
+  "github": {
+    "autoJobCancelation": true
+  }
+} 
